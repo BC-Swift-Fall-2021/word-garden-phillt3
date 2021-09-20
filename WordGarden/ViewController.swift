@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import AVFoundation
 
 class ViewController: UIViewController {
     @IBOutlet weak var wordGuessedLabel: UILabel!
@@ -28,6 +29,7 @@ class ViewController: UIViewController {
     var wordsGuessedCount = 0
     var wordsMissedCount = 0
     var guessCount = 0
+    var audioPlayer: AVAudioPlayer!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -71,27 +73,48 @@ class ViewController: UIViewController {
         wordsInGameLabel.text = "Words Guessed: \(wordsToGuess.count)"
     }
     
+    func drawFlowerAndPlaySound(currentLetterGuessed: String){
+        if wordToGuess.contains(currentLetterGuessed) == false {
+            wrongGuessesRemaining = wrongGuessesRemaining - 1
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25){
+                UIView.transition(with: self.flowerImageView, duration: 0.5, options: .transitionCrossDissolve, animations: {self.flowerImageView.image = UIImage(named: "wilt\(self.wrongGuessesRemaining)")}){ (_) in
+                    
+                    if self.wrongGuessesRemaining != 0{
+                        self.flowerImageView.image = UIImage(named: "flower\(self.wrongGuessesRemaining)")
+                    } else {
+                        self.playSound(name: "word-not-guessed")
+                        UIView.transition(with: self.flowerImageView, duration: 0.5, options: .transitionCrossDissolve, animations: {self.flowerImageView.image = UIImage(named: "flower\(self.wrongGuessesRemaining)")}, completion: nil)
+                    }
+                }
+                self.playSound(name: "incorrect")
+            }
+            
+            
+        } else {
+            playSound(name: "correct")
+        }
+    }
+    
     func guessALetter(){
         let currentLetterGuessed = guessedLetterTextField.text ?? ""
         lettersGuessed = lettersGuessed + currentLetterGuessed
         formatRevealWord()
         
-        if wordToGuess.contains(currentLetterGuessed) == false {
-            wrongGuessesRemaining = wrongGuessesRemaining - 1
-            flowerImageView.image = UIImage(named: "flower\(wrongGuessesRemaining)")
-        }
+        drawFlowerAndPlaySound(currentLetterGuessed: currentLetterGuessed)
         
         guessCount += 1
-//        var guesses = "Guesses"
-////        if guessCount == 1{
-////            guesses = "Guess"
-////        }
+        //        var guesses = "Guesses"
+        ////        if guessCount == 1{
+        ////            guesses = "Guess"
+        ////        }
         let guesses = (guessCount == 1 ? "Guess" : "Guesses")
         gameStatusMessageLabel.text = "You've made \(guessCount) \(guesses)."
         
         if wordBeingRevealedLabel.text!.contains("_") == false {
             gameStatusMessageLabel.text = "You have guessed it! It took you \(guessCount) tries!"
             wordsGuessedCount += 1
+            playSound(name: "word-guessed")
             updateWinOrLose()
         } else if wrongGuessesRemaining == 0{
             gameStatusMessageLabel.text = "So sorry, all out of guesses!"
@@ -104,8 +127,21 @@ class ViewController: UIViewController {
         }
     }
     
+    func playSound(name: String){
+        if let sound = NSDataAsset(name: name) {
+            do {
+                try audioPlayer = AVAudioPlayer(data: sound.data)
+                audioPlayer.play()
+            } catch {
+                print("Error \(error.localizedDescription)")
+            }
+        } else {
+            print("Could not read data file for sound")
+        }
+    }
+    
     @IBAction func guessedLetterFieldChanged(_ sender: UITextField) {
-        sender.text = String(sender.text?.last ?? " ").trimmingCharacters(in: .whitespaces)
+        sender.text = String(sender.text?.last ?? " ").trimmingCharacters(in: .whitespaces).uppercased()
         guessLetterButton.isEnabled = !(sender.text!.isEmpty)
     }
     @IBAction func doneKeyPressed(_ sender: UITextField) {
